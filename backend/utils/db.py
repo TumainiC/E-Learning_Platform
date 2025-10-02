@@ -3,7 +3,7 @@ MongoDB database connection utility
 """
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
-from backend.config import settings
+from ..config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,13 +20,23 @@ class Database:
         Establish connection to MongoDB
         """
         try:
-            cls.client = AsyncIOMotorClient(settings.mongodb_uri)
+            # Add timeout and SSL configuration
+            cls.client = AsyncIOMotorClient(
+                settings.mongodb_uri,
+                serverSelectionTimeoutMS=10000,  # 10 second timeout
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000,
+                tls=True,
+                tlsAllowInvalidCertificates=True
+            )
             # Verify connection
             await cls.client.admin.command('ping')
             logger.info("Successfully connected to MongoDB")
-        except ConnectionFailure as e:
+        except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
-            raise
+            # Don't raise the exception to allow server to start
+            logger.warning("Server starting without database connection")
+            cls.client = None
     
     @classmethod
     async def close_db(cls):
@@ -43,7 +53,7 @@ class Database:
         Get database instance
         """
         if not cls.client:
-            raise Exception("Database not connected. Call connect_db() first.")
+            raise Exception("Database not connected. Please check MongoDB connection string and network access.")
         return cls.client[settings.database_name]
     
     @classmethod

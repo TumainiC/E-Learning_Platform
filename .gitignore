@@ -49,3 +49,6 @@ Thumbs.db
 
 # UV
 .uv/
+
+# JS packages
+node_modules/
