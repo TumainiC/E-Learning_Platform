@@ -2,7 +2,7 @@
 Authentication middleware for protecting routes
 """
 from functools import wraps
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..utils.auth import get_user_from_token
 from ..utils.db import get_users_collection
@@ -110,14 +110,31 @@ class AuthMiddleware:
     Authentication middleware class for dependency injection
     """
     
-    def __init__(self, credentials: HTTPAuthorizationCredentials = security):
-        self.credentials = credentials
+    def __init__(self):
+        pass
     
-    async def __call__(self) -> dict:
+    async def __call__(self, credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
         """
         Verify credentials and return user
+        
+        Args:
+            credentials: HTTP authorization credentials from FastAPI security
         
         Returns:
             User document from database
         """
-        return await get_current_user(self.credentials)
+        return await get_current_user(credentials)
+
+
+# Simplified dependency function for easier use
+async def get_current_user_dependency(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """
+    FastAPI dependency function to get current authenticated user
+    
+    Args:
+        credentials: HTTP authorization credentials
+        
+    Returns:
+        User document from database
+    """
+    return await get_current_user(credentials)

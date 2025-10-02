@@ -3,7 +3,7 @@
  * Displays list of available courses (placeholder for now)
  */
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 const CoursesPage = () => {
   const { user } = useAuth();

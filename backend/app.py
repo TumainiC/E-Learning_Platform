@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .utils.db import Database
 from .config import settings
 from .routes.auth import router as auth_router
+from .routes.courses import router as courses_router
 import logging
 
 # Configure logging
@@ -53,6 +54,9 @@ app.add_middleware(
 # Include authentication routes
 app.include_router(auth_router)
 
+# Include courses routes
+app.include_router(courses_router)
+
 
 @app.get("/")
 async def root():
@@ -64,7 +68,8 @@ async def root():
         "endpoints": {
             "docs": "/docs",
             "health": "/health",
-            "auth": "/api/auth"
+            "auth": "/api/auth",
+            "courses": "/api/courses"
         }
     }
 

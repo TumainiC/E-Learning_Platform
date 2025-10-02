@@ -82,6 +82,11 @@ def get_courses_collection():
     return Database.get_collection("courses")
 
 
+def get_completions_collection():
+    """Get completions collection"""
+    return Database.get_collection("completions")
+
+
 def get_enrollments_collection():
     """Get enrollments collection"""
     return Database.get_collection("enrollments")

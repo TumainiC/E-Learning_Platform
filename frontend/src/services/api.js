@@ -96,7 +96,7 @@ export const courseAPI = {
    */
   getCourses: async () => {
     const response = await api.get('/api/courses');
-    return response.data;
+    return response.data.courses; // Extract courses array from the response
   },
 
   /**
