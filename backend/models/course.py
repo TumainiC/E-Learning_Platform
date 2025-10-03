@@ -52,6 +52,7 @@ class CourseResponse(BaseModel):
     thumbnail: Optional[str] = None
     isCompleted: bool = False
     completedAt: Optional[datetime] = None
+    isEnrolled: bool = False
 
 
 class CoursesListResponse(BaseModel):
@@ -64,3 +65,23 @@ class CourseDetailResponse(BaseModel):
     """Individual course detail API response model"""
     success: bool = True
     course: CourseResponse
+
+
+class CompletionData(BaseModel):
+    """Completion data model for API responses"""
+    courseId: str
+    completedAt: datetime
+
+
+class CompletionCreateResponse(BaseModel):
+    """Course completion creation response model"""
+    success: bool = True
+    message: str
+    completion: CompletionData
+
+
+class MarkCompleteResponse(BaseModel):
+    """Mark course complete API response model"""
+    success: bool = True
+    message: str
+    completion: CompletionData

@@ -17,7 +17,7 @@ from ..utils.auth import (
     create_access_token
 )
 from ..utils.db import get_users_collection
-from ..middleware.auth import AuthMiddleware
+from ..middleware.auth import get_current_user_dependency
 from datetime import datetime
 from bson import ObjectId
 import logging
@@ -164,7 +164,7 @@ async def login(user_data: UserLoginRequest):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = Depends(lambda: AuthMiddleware())):
+async def get_current_user_info(current_user: dict = Depends(get_current_user_dependency)):
     """
     Get current user information
     

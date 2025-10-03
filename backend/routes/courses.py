@@ -4,13 +4,108 @@ Courses routes for e-learning platform
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from datetime import datetime
-from ..models.course import Course, CourseResponse, CoursesListResponse, CourseDetailResponse
+from ..models.course import Course, CourseResponse, CoursesListResponse, CourseDetailResponse, CompletionCreateResponse
+from ..models.enrollment import EnrollmentCreateResponse
+from ..models.completion import ModuleCompletionCreateResponse, ModuleCompletionResponse, CourseProgressResponse
 from ..middleware.auth import get_current_user_dependency
-from ..utils.db import get_courses_collection, get_completions_collection
+from ..utils.db import get_courses_collection, get_completions_collection, get_enrollments_collection, get_module_completions_collection
 from bson import ObjectId
+from bson.errors import InvalidId
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Create router for course endpoints
+router = APIRouter(prefix="/api/courses", tags=["courses"])
+
+
+@router.post("/{course_id}/enroll", response_model=EnrollmentCreateResponse)
+async def enroll_in_course(course_id: str, current_user: dict = Depends(get_current_user_dependency)):
+    """
+    Enroll user in a course (protected route)
+    
+    Args:
+        course_id: Course ID
+        current_user: Current authenticated user
+        
+    Returns:
+        Enrollment confirmation
+    """
+    try:
+        # Validate ObjectId
+        try:
+            object_id = ObjectId(course_id)
+        except InvalidId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid course ID format"
+            )
+        
+        # Get collections
+        courses_collection = get_courses_collection()
+        enrollments_collection = get_enrollments_collection()
+        
+        # Check if course exists
+        course = await courses_collection.find_one({"_id": object_id})
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Course not found"
+            )
+        
+        # Check if user is already enrolled
+        user_id = ObjectId(current_user["_id"])
+        existing_enrollment = await enrollments_collection.find_one({
+            "userId": user_id,
+            "courseId": object_id
+        })
+        
+        if existing_enrollment:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is already enrolled in this course"
+            )
+        
+        # Create enrollment document
+        enrollment_time = datetime.utcnow()
+        enrollment_doc = {
+            "userId": user_id,
+            "courseId": object_id,
+            "enrolledAt": enrollment_time,
+            "createdAt": enrollment_time
+        }
+        
+        # Insert enrollment
+        result = await enrollments_collection.insert_one(enrollment_doc)
+        
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to enroll in course"
+            )
+        
+        # Create response data
+        enrollment_data = {
+            "courseId": course_id,
+            "enrolledAt": enrollment_time.isoformat()
+        }
+        
+        logger.info(f"User {current_user['email']} enrolled in course {course_id}")
+        
+        return EnrollmentCreateResponse(
+            success=True,
+            message="Successfully enrolled in course",
+            enrollment=enrollment_data
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to enroll user in course {course_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to enroll in course"
+        )
 
 # Create router for course endpoints
 router = APIRouter(prefix="/api/courses", tags=["courses"])
@@ -135,9 +230,10 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
         # Ensure courses are seeded
         await seed_courses()
         
-        # Get courses and completions collections
+        # Get courses, completions, and enrollments collections
         courses_collection = get_courses_collection()
         completions_collection = get_completions_collection()
+        enrollments_collection = get_enrollments_collection()
         
         # Fetch all courses from database
         courses_cursor = courses_collection.find({})
@@ -152,12 +248,18 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
             for completion in completed_courses
         }
         
-        # Convert to response format with completion status
+        # Get user's enrolled courses
+        enrolled_courses_cursor = enrollments_collection.find({"userId": user_id})
+        enrolled_courses = await enrolled_courses_cursor.to_list(length=None)
+        enrolled_course_ids = {str(enrollment["courseId"]) for enrollment in enrolled_courses}
+        
+        # Convert to response format with completion and enrollment status
         course_responses = []
         for course in courses:
             course_id = str(course["_id"])
             completed_at = completed_course_map.get(course_id)
             is_completed = completed_at is not None
+            is_enrolled = course_id in enrolled_course_ids
             
             course_response = CourseResponse(
                 id=course_id,
@@ -171,7 +273,8 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
                 objectives=course["objectives"],
                 thumbnail=course["thumbnail"],
                 isCompleted=is_completed,
-                completedAt=completed_at
+                completedAt=completed_at,
+                isEnrolled=is_enrolled
             )
             course_responses.append(course_response)
         
@@ -203,8 +306,6 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
         Course details with completion status and date
     """
     try:
-        from bson.errors import InvalidId
-        
         # Validate ObjectId
         try:
             object_id = ObjectId(course_id)
@@ -267,4 +368,301 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve course"
+        )
+
+
+@router.post("/{course_id}/complete", response_model=CompletionCreateResponse)
+async def mark_course_complete(course_id: str, current_user: dict = Depends(get_current_user_dependency)):
+    """
+    Mark a course as completed (protected route)
+    
+    Args:
+        course_id: Course ID
+        current_user: Current authenticated user
+        
+    Returns:
+        Completion confirmation with timestamp
+    """
+    try:
+        # Validate ObjectId
+        try:
+            object_id = ObjectId(course_id)
+        except InvalidId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid course ID format"
+            )
+        
+        # Get courses and completions collections
+        courses_collection = get_courses_collection()
+        completions_collection = get_completions_collection()
+        
+        # Check if course exists
+        course = await courses_collection.find_one({"_id": object_id})
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Course not found"
+            )
+        
+        # Check if user already completed this course
+        user_id = ObjectId(current_user["_id"])
+        existing_completion = await completions_collection.find_one({
+            "userId": user_id,
+            "courseId": object_id
+        })
+        
+        if existing_completion:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Course already completed"
+            )
+        
+        # Create new completion document
+        completion_time = datetime.utcnow()
+        completion_document = {
+            "userId": user_id,
+            "courseId": object_id,
+            "completedAt": completion_time,
+            "createdAt": completion_time
+        }
+        
+        # Insert completion into database
+        result = await completions_collection.insert_one(completion_document)
+        
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to mark course as completed"
+            )
+        
+        # Create response data
+        completion_data = {
+            "courseId": course_id,
+            "completedAt": completion_time.isoformat()
+        }
+        
+        logger.info(f"User {current_user['email']} completed course {course_id}")
+        
+        return CompletionCreateResponse(
+            success=True,
+            message="Course marked as completed",
+            completion=completion_data
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to mark course {course_id} as complete: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark course as completed"
+        )
+
+
+@router.post("/{course_id}/modules/{module_index}/complete")
+async def complete_module(
+    course_id: str, 
+    module_index: int,
+    current_user: dict = Depends(get_current_user_dependency)
+):
+    """
+    Mark a specific module as completed
+    
+    Args:
+        course_id: Course ID
+        module_index: Index of the module in the syllabus
+        current_user: Current authenticated user
+        
+    Returns:
+        Module completion confirmation
+    """
+    try:
+        # Validate ObjectId
+        try:
+            course_object_id = ObjectId(course_id)
+        except InvalidId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid course ID format"
+            )
+        
+        # Get collections
+        courses_collection = get_courses_collection()
+        enrollments_collection = get_enrollments_collection()
+        module_completions_collection = get_module_completions_collection()
+        
+        # Check if course exists and get syllabus
+        course = await courses_collection.find_one({"_id": course_object_id})
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Course not found"
+            )
+        
+        # Validate module index
+        if module_index < 0 or module_index >= len(course.get("syllabus", [])):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid module index"
+            )
+        
+        # Check if user is enrolled in the course
+        user_id = ObjectId(current_user["_id"])
+        enrollment = await enrollments_collection.find_one({
+            "userId": user_id,
+            "courseId": course_object_id
+        })
+        
+        if not enrollment:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You must be enrolled in the course to complete modules"
+            )
+        
+        # Check if module already completed
+        existing_completion = await module_completions_collection.find_one({
+            "userId": user_id,
+            "courseId": course_object_id,
+            "moduleIndex": module_index
+        })
+        
+        if existing_completion:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Module already completed"
+            )
+        
+        # Create module completion document
+        completion_time = datetime.utcnow()
+        module_title = course["syllabus"][module_index]
+        
+        completion_document = {
+            "userId": user_id,
+            "courseId": course_object_id,
+            "moduleIndex": module_index,
+            "moduleTitle": module_title,
+            "completedAt": completion_time,
+            "createdAt": completion_time
+        }
+        
+        # Insert completion
+        result = await module_completions_collection.insert_one(completion_document)
+        
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to mark module as completed"
+            )
+        
+        # Create response
+        completion_response = ModuleCompletionResponse(
+            id=str(result.inserted_id),
+            userId=str(user_id),
+            courseId=course_id,
+            moduleIndex=module_index,
+            moduleTitle=module_title,
+            completedAt=completion_time
+        )
+        
+        logger.info(f"User {current_user['email']} completed module {module_index} of course {course_id}")
+        
+        return ModuleCompletionCreateResponse(
+            success=True,
+            message=f"Module '{module_title}' marked as completed",
+            completion=completion_response
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to complete module {module_index} in course {course_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark module as completed"
+        )
+
+
+@router.get("/{course_id}/progress")
+async def get_course_progress(
+    course_id: str,
+    current_user: dict = Depends(get_current_user_dependency)
+):
+    """
+    Get user's progress for a specific course
+    
+    Args:
+        course_id: Course ID
+        current_user: Current authenticated user
+        
+    Returns:
+        Course progress with module completions
+    """
+    try:
+        # Validate ObjectId
+        try:
+            course_object_id = ObjectId(course_id)
+        except InvalidId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid course ID format"
+            )
+        
+        # Get collections
+        courses_collection = get_courses_collection()
+        module_completions_collection = get_module_completions_collection()
+        
+        # Check if course exists
+        course = await courses_collection.find_one({"_id": course_object_id})
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Course not found"
+            )
+        
+        # Get user's module completions for this course
+        user_id = ObjectId(current_user["_id"])
+        completions_cursor = module_completions_collection.find({
+            "userId": user_id,
+            "courseId": course_object_id
+        }).sort("moduleIndex", 1)
+        
+        completions_data = await completions_cursor.to_list(length=None)
+        
+        # Convert to response format
+        completions = [
+            ModuleCompletionResponse(
+                id=str(completion["_id"]),
+                userId=str(completion["userId"]),
+                courseId=course_id,
+                moduleIndex=completion["moduleIndex"],
+                moduleTitle=completion["moduleTitle"],
+                completedAt=completion["completedAt"]
+            )
+            for completion in completions_data
+        ]
+        
+        # Calculate progress
+        total_modules = len(course.get("syllabus", []))
+        completed_modules = len(completions)
+        progress_percentage = (completed_modules / total_modules * 100) if total_modules > 0 else 0
+        is_fully_completed = completed_modules == total_modules and total_modules > 0
+        
+        return CourseProgressResponse(
+            success=True,
+            courseId=course_id,
+            totalModules=total_modules,
+            completedModules=completed_modules,
+            progressPercentage=round(progress_percentage, 2),
+            completions=completions,
+            isFullyCompleted=is_fully_completed
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get progress for course {course_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get course progress"
         )

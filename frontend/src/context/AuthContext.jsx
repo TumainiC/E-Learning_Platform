@@ -84,6 +84,7 @@ export const AuthProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
+      console.error('Login error:', error);
       const errorMessage = error.response?.data?.detail || 'Login failed';
       setError(errorMessage);
       return false;
@@ -118,6 +119,7 @@ export const AuthProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
+      console.error('Signup error:', error);
       const errorMessage = error.response?.data?.detail || 'Signup failed';
       setError(errorMessage);
       return false;
