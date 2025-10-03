@@ -37,7 +37,7 @@ function App() {
               }
             />
             <Route
-              path="/courses/:courseId"
+              path="/courses/:id"
               element={
                 <ProtectedRoute>
                   <CourseDetailPage />

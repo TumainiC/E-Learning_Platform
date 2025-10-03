@@ -118,6 +118,37 @@ export const courseAPI = {
     const response = await api.post(`/api/courses/${courseId}/complete`);
     return response.data;
   },
+
+  /**
+   * Enroll in a course
+   * @param {string} courseId - Course ID
+   * @returns {Promise} API response
+   */
+  enrollInCourse: async (courseId) => {
+    const response = await api.post(`/api/courses/${courseId}/enroll`);
+    return response.data;
+  },
+
+  /**
+   * Get course progress with module completions
+   * @param {string} courseId - Course ID
+   * @returns {Promise} API response
+   */
+  getCourseProgress: async (courseId) => {
+    const response = await api.get(`/api/courses/${courseId}/progress`);
+    return response.data;
+  },
+
+  /**
+   * Mark a specific module as complete
+   * @param {string} courseId - Course ID
+   * @param {number} moduleIndex - Module index
+   * @returns {Promise} API response
+   */
+  completeModule: async (courseId, moduleIndex) => {
+    const response = await api.post(`/api/courses/${courseId}/modules/${moduleIndex}/complete`);
+    return response.data;
+  },
 };
 
 // Health check

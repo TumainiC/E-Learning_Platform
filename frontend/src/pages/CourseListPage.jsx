@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { courseAPI } from '../services/api';
+import api from '../services/api';
 import CourseCard from '../components/CourseCard';
 
 const CourseListPage = () => {
@@ -23,8 +23,8 @@ const CourseListPage = () => {
       setError(null);
       
       // Fetch courses from API
-      const coursesData = await courseAPI.getCourses();
-      setCourses(coursesData);
+      const response = await api.get('/api/courses');
+      setCourses(response.data.courses);
     } catch (err) {
       console.error('Error fetching courses:', err);
       setError(err.response?.data?.detail || 'Failed to load courses');
