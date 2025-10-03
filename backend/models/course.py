@@ -51,9 +51,16 @@ class CourseResponse(BaseModel):
     objectives: List[str]
     thumbnail: Optional[str] = None
     isCompleted: bool = False
+    completedAt: Optional[datetime] = None
 
 
 class CoursesListResponse(BaseModel):
     """Courses list API response model"""
     success: bool = True
     courses: List[CourseResponse]
+
+
+class CourseDetailResponse(BaseModel):
+    """Individual course detail API response model"""
+    success: bool = True
+    course: CourseResponse

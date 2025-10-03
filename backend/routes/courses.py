@@ -4,7 +4,7 @@ Courses routes for e-learning platform
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from datetime import datetime
-from ..models.course import Course, CourseResponse, CoursesListResponse
+from ..models.course import Course, CourseResponse, CoursesListResponse, CourseDetailResponse
 from ..middleware.auth import get_current_user_dependency
 from ..utils.db import get_courses_collection, get_completions_collection
 from bson import ObjectId
@@ -143,17 +143,21 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
         courses_cursor = courses_collection.find({})
         courses = await courses_cursor.to_list(length=None)
         
-        # Get user's completed courses
+        # Get user's completed courses with completion dates
         user_id = ObjectId(current_user["_id"])
         completed_courses_cursor = completions_collection.find({"userId": user_id})
         completed_courses = await completed_courses_cursor.to_list(length=None)
-        completed_course_ids = {str(completion["courseId"]) for completion in completed_courses}
+        completed_course_map = {
+            str(completion["courseId"]): completion["completedAt"] 
+            for completion in completed_courses
+        }
         
         # Convert to response format with completion status
         course_responses = []
         for course in courses:
             course_id = str(course["_id"])
-            is_completed = course_id in completed_course_ids
+            completed_at = completed_course_map.get(course_id)
+            is_completed = completed_at is not None
             
             course_response = CourseResponse(
                 id=course_id,
@@ -166,7 +170,8 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
                 syllabus=course["syllabus"],
                 objectives=course["objectives"],
                 thumbnail=course["thumbnail"],
-                isCompleted=is_completed
+                isCompleted=is_completed,
+                completedAt=completed_at
             )
             course_responses.append(course_response)
         
@@ -185,7 +190,7 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
         )
 
 
-@router.get("/{course_id}", response_model=CourseResponse)
+@router.get("/{course_id}", response_model=CourseDetailResponse)
 async def get_course(course_id: str, current_user: dict = Depends(get_current_user_dependency)):
     """
     Get a specific course by ID (protected route)
@@ -195,7 +200,7 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
         current_user: Current authenticated user
         
     Returns:
-        Course details
+        Course details with completion status and date
     """
     try:
         from bson.errors import InvalidId
@@ -222,13 +227,15 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
                 detail="Course not found"
             )
         
-        # Check if user completed this course
+        # Check if user completed this course and get completion date
         user_id = ObjectId(current_user["_id"])
         completion = await completions_collection.find_one({
             "userId": user_id,
             "courseId": object_id
         })
+        
         is_completed = completion is not None
+        completed_at = completion["completedAt"] if completion else None
         
         # Convert to response format
         course_response = CourseResponse(
@@ -242,11 +249,16 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
             syllabus=course["syllabus"],
             objectives=course["objectives"],
             thumbnail=course["thumbnail"],
-            isCompleted=is_completed
+            isCompleted=is_completed,
+            completedAt=completed_at
         )
         
         logger.info(f"Retrieved course {course_id} for user {current_user['email']}")
-        return course_response
+        
+        return CourseDetailResponse(
+            success=True,
+            course=course_response
+        )
         
     except HTTPException:
         raise

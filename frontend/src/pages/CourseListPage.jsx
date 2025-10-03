@@ -6,8 +6,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import CourseCard from '../components/CourseCard';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorMessage from '../components/ErrorMessage';
 
 const CourseListPage = () => {
   const { user } = useAuth();
