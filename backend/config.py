@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # JWT Configuration
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 1440  # 24 hours
     
     # Application Configuration
     app_name: str = "Mini E-Learning Platform"

@@ -7,8 +7,12 @@ from datetime import datetime, timedelta
 from ..config import settings
 import re
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context with minimum 10 salt rounds
+pwd_context = CryptContext(
+    schemes=["bcrypt"], 
+    deprecated="auto",
+    bcrypt__rounds=12  # Use 12 rounds for good security (>= 10 requirement)
+)
 
 
 def hash_password(password: str) -> str:

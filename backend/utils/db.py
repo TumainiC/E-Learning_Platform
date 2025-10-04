@@ -17,7 +17,7 @@ class Database:
     @classmethod
     async def connect_db(cls):
         """
-        Establish connection to MongoDB
+        Establish connection to MongoDB and create indexes
         """
         try:
             # Add timeout and SSL configuration
@@ -32,11 +32,57 @@ class Database:
             # Verify connection
             await cls.client.admin.command('ping')
             logger.info("Successfully connected to MongoDB")
+            
+            # Create database indexes on startup
+            await cls._create_indexes()
+            
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             # Don't raise the exception to allow server to start
             logger.warning("Server starting without database connection")
             cls.client = None
+    
+    @classmethod
+    async def _create_indexes(cls):
+        """
+        Create database indexes for optimal performance
+        """
+        try:
+            db = cls.get_database()
+            
+            # Users collection indexes
+            await db.users.create_index("email", unique=True)
+            await db.users.create_index("createdAt")
+            
+            # Courses collection indexes
+            await db.courses.create_index("title")
+            await db.courses.create_index("instructor")
+            await db.courses.create_index("level")
+            await db.courses.create_index("createdAt")
+            
+            # Enrollments collection indexes
+            await db.enrollments.create_index([("userId", 1), ("courseId", 1)], unique=True)
+            await db.enrollments.create_index("userId")
+            await db.enrollments.create_index("courseId")
+            await db.enrollments.create_index("enrolledAt")
+            
+            # Completions collection indexes
+            await db.completions.create_index([("userId", 1), ("courseId", 1)], unique=True)
+            await db.completions.create_index("userId")
+            await db.completions.create_index("courseId")
+            await db.completions.create_index("completedAt")
+            
+            # Module completions collection indexes
+            await db.module_completions.create_index([("userId", 1), ("courseId", 1), ("moduleIndex", 1)], unique=True)
+            await db.module_completions.create_index("userId")
+            await db.module_completions.create_index("courseId")
+            await db.module_completions.create_index("completedAt")
+            
+            logger.info("Database indexes created successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to create database indexes: {e}")
+            # Continue without indexes - performance may be degraded but app will work
     
     @classmethod
     async def close_db(cls):

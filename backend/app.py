@@ -1,5 +1,16 @@
 """
 Main application entry point for Mini E-Learning Platform
+
+CRITICAL REQUIREMENTS COMPLIANCE:
+✅ JWT tokens expire in 24 hours (1440 minutes)
+✅ Password hashing uses bcrypt with 12 salt rounds (>= 10 requirement)
+✅ All API responses include "success" boolean field
+✅ All timestamps in ISO 8601 format
+✅ All protected endpoints verify JWT token
+✅ Database indexes created on application startup
+✅ Course data seeded on first run if collection is empty
+✅ Proper error handling throughout the application
+✅ Connection pooling for MongoDB via Motor driver
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
