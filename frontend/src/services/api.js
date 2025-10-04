@@ -30,14 +30,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only auto-logout on 401 if it's not a login or signup attempt
     if (error.response?.status === 401) {
-      // Clear authentication data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
+                            error.config?.url?.includes('/auth/signup');
       
-      // Redirect to login page (if not already there)
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (!isAuthEndpoint) {
+        // Clear authentication data
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        
+        // Redirect to login page (if not already there)
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

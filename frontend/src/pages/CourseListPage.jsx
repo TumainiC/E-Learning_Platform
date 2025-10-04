@@ -8,15 +8,32 @@ import api from '../services/api';
 import CourseCard from '../components/CourseCard';
 
 const CourseListPage = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchCourses();
+    const loadData = async () => {
+      try {
+        await fetchCourses();
+        
+        // Refresh user data to get latest points (only if function is available)
+        if (refreshUser && typeof refreshUser === 'function') {
+          try {
+            await refreshUser();
+          } catch (error) {
+            console.log('Could not refresh user data:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      }
+    };
     
-    // Refresh courses when window regains focus (useful when returning from course detail page)
+    loadData();
+    
+    // Refresh data when window regains focus (useful when returning from course detail page)
     const handleFocus = () => {
       fetchCourses();
     };
@@ -26,7 +43,7 @@ const CourseListPage = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, []); // Remove refreshUser dependency to avoid infinite loops
 
   const fetchCourses = async () => {
     try {
@@ -99,7 +116,7 @@ const CourseListPage = () => {
                 </div>
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
-                {courses.filter(course => course.isCompleted).length * 25}
+                {user?.points || 0}
               </div>
               <div className="text-gray-600">Points</div>
             </div>

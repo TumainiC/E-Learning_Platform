@@ -34,15 +34,22 @@ const Navbar = () => {
                 >
                   Courses
                 </Link>
-                <span className="text-blue-200 text-sm">
-                  Welcome, {user?.fullName}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  Logout
-                </button>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-yellow-300 text-sm font-medium">
+                      🏆 {user?.points || 0} points
+                    </span>
+                    <span className="text-blue-200 text-sm">
+                      Welcome, {user?.fullName}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md text-sm font-medium"
+                  >
+                    Logout
+                  </button>
+                </div>
               </>
             ) : (
               <>

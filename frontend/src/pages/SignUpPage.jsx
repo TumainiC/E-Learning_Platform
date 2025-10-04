@@ -130,24 +130,25 @@ const SignUpPage = () => {
     setIsSubmitting(true);
 
     try {
-      const success = await signup(
+      const result = await signup(
         formData.email,
         formData.password,
         formData.fullName,
         formData.confirmPassword
       );
 
-      if (success) {
+      if (result.success) {
         showSuccess('Account created successfully! Welcome to the platform.');
         setTimeout(() => {
           navigate('/courses');
         }, 2000);
-      } else if (error) {
-        showError(error);
+      } else {
+        showError(result.error || 'Account creation failed. Please try again.');
       }
     } catch (error) {
       console.error('Signup error:', error);
-      showError('Account creation failed. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Account creation failed. Please try again.';
+      showError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

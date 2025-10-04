@@ -3,10 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 const CourseDetailPage = () => {
   const { id } = useParams();
   const { showSuccess, showError } = useToast();
+  const { user, refreshUser } = useAuth();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -76,18 +78,25 @@ const CourseDetailPage = () => {
     try {
       setError(null);
       
-      await api.post(`/api/courses/${id}/modules/${moduleIndex}/complete`);
+      const response = await api.post(`/api/courses/${id}/modules/${moduleIndex}/complete`);
+      const completionData = response.data;
       
-      // Show success toast for module completion
-      showSuccess(`Module ${moduleIndex + 1} completed!`);
+      // Refresh user data to get updated points
+      if (refreshUser && typeof refreshUser === 'function') {
+        await refreshUser();
+      }
+      
+      // Show success toast with points information
+      if (completionData.courseCompleted) {
+        showSuccess(`🎉 Module completed! Course finished! +${completionData.pointsAwarded} points (Total: ${completionData.totalPoints})`);
+        setShowCongratulations(true);
+      } else {
+        showSuccess(`✅ Module ${moduleIndex + 1} completed! +${completionData.pointsAwarded} points`);
+      }
       
       await fetchProgress();
       
       const updatedProgress = await api.get(`/api/courses/${id}/progress`);
-      if (updatedProgress.data.isFullyCompleted && !progress?.isFullyCompleted) {
-        setShowCongratulations(true);
-        showSuccess(`🎉 Congratulations! You've completed "${course?.title}"!`);
-      }
       setProgress(updatedProgress.data);
       
     } catch (err) {
@@ -220,12 +229,22 @@ const CourseDetailPage = () => {
                   <p className="text-blue-600">
                     {getCompletedModulesCount()} of {progress.totalModules} modules completed ({getProgressPercentage()}%)
                   </p>
+                  <p className="text-yellow-600 font-medium mt-1">
+                    🏆 {progress.pointsEarned || 0} points earned from this course
+                  </p>
                 </div>
-                <div className="w-32 bg-blue-200 rounded-full h-3">
-                  <div 
-                    className="bg-blue-600 h-3 rounded-full transition-all duration-300" 
-                    style={{ width: `${getProgressPercentage()}%` }}
-                  />
+                <div className="text-right">
+                  <div className="w-32 bg-blue-200 rounded-full h-3 mb-2">
+                    <div 
+                      className="bg-blue-600 h-3 rounded-full transition-all duration-300" 
+                      style={{ width: `${getProgressPercentage()}%` }}
+                    />
+                  </div>
+                  {progress.isFullyCompleted && (
+                    <span className="text-green-600 text-sm font-medium">
+                      ✅ Course Completed!
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

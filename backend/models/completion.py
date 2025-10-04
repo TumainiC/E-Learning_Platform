@@ -71,6 +71,9 @@ class ModuleCompletionCreateResponse(BaseModel):
     success: bool = True
     message: str
     completion: ModuleCompletionResponse
+    pointsAwarded: int = 10
+    totalPoints: int = 0
+    courseCompleted: bool = False
 
 
 class CourseProgressResponse(BaseModel):
@@ -82,3 +85,4 @@ class CourseProgressResponse(BaseModel):
     progressPercentage: float
     completions: List[ModuleCompletionResponse]
     isFullyCompleted: bool
+    pointsEarned: int = 0

@@ -8,7 +8,7 @@ from ..models.course import Course, CourseResponse, CoursesListResponse, CourseD
 from ..models.enrollment import EnrollmentCreateResponse
 from ..models.completion import ModuleCompletionCreateResponse, ModuleCompletionResponse, CourseProgressResponse
 from ..middleware.auth import get_current_user_dependency
-from ..utils.db import get_courses_collection, get_completions_collection, get_enrollments_collection, get_module_completions_collection
+from ..utils.db import get_courses_collection, get_completions_collection, get_enrollments_collection, get_module_completions_collection, get_users_collection
 from bson import ObjectId
 from bson.errors import InvalidId
 import logging
@@ -582,6 +582,50 @@ async def complete_module(
                 detail="Failed to mark module as completed"
             )
         
+        # Award points for completing module (10 points per module)
+        POINTS_PER_MODULE = 10
+        users_collection = get_users_collection()
+        await users_collection.update_one(
+            {"_id": user_id},
+            {"$inc": {"points": POINTS_PER_MODULE}}
+        )
+        
+        # Get updated user points
+        updated_user = await users_collection.find_one({"_id": user_id})
+        total_points = updated_user.get("points", 0)
+        
+        # Check if all modules in the course are completed
+        total_modules = len(course["syllabus"])
+        completed_modules_count = await module_completions_collection.count_documents({
+            "userId": user_id,
+            "courseId": course_object_id
+        })
+        
+        course_completed = completed_modules_count == total_modules
+        
+        # If course is completed, award bonus points and mark course as completed
+        course_completion_bonus = 0
+        if course_completed:
+            # Award bonus points for completing entire course (50% of total module points)
+            course_completion_bonus = int((total_modules * POINTS_PER_MODULE) * 0.5)
+            await users_collection.update_one(
+                {"_id": user_id},
+                {"$inc": {"points": course_completion_bonus}}
+            )
+            
+            # Update total points
+            total_points += course_completion_bonus
+            
+            # Create course completion record
+            completions_collection = get_completions_collection()
+            course_completion_doc = {
+                "userId": user_id,
+                "courseId": course_object_id,
+                "completedAt": completion_time,
+                "createdAt": completion_time
+            }
+            await completions_collection.insert_one(course_completion_doc)
+        
         # Create response
         completion_response = ModuleCompletionResponse(
             id=str(result.inserted_id),
@@ -592,12 +636,19 @@ async def complete_module(
             completedAt=completion_time
         )
         
+        success_message = f"Module '{module_title}' marked as completed"
+        if course_completed:
+            success_message += f" - Course completed! Bonus: {course_completion_bonus} points"
+        
         logger.info(f"User {current_user['email']} completed module {module_index} of course {course_id}")
         
         return ModuleCompletionCreateResponse(
             success=True,
-            message=f"Module '{module_title}' marked as completed",
-            completion=completion_response
+            message=success_message,
+            completion=completion_response,
+            pointsAwarded=POINTS_PER_MODULE + course_completion_bonus,
+            totalPoints=total_points,
+            courseCompleted=course_completed
         )
         
     except HTTPException:
@@ -675,6 +726,12 @@ async def get_course_progress(
         progress_percentage = (completed_modules / total_modules * 100) if total_modules > 0 else 0
         is_fully_completed = completed_modules == total_modules and total_modules > 0
         
+        # Calculate points earned from this course
+        POINTS_PER_MODULE = 10
+        points_from_modules = completed_modules * POINTS_PER_MODULE
+        course_completion_bonus = int((total_modules * POINTS_PER_MODULE) * 0.5) if is_fully_completed else 0
+        total_points_earned = points_from_modules + course_completion_bonus
+        
         return CourseProgressResponse(
             success=True,
             courseId=course_id,
@@ -682,7 +739,8 @@ async def get_course_progress(
             completedModules=completed_modules,
             progressPercentage=round(progress_percentage, 2),
             completions=completions,
-            isFullyCompleted=is_fully_completed
+            isFullyCompleted=is_fully_completed,
+            pointsEarned=total_points_earned
         )
         
     except HTTPException:

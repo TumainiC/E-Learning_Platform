@@ -80,6 +80,7 @@ async def signup(user_data: UserSignupRequest):
         "email": user_data.email.lower(),
         "password_hash": password_hash,
         "fullName": user_data.fullName,
+        "points": 0,
         "createdAt": now,
         "updatedAt": now
     }
@@ -96,7 +97,8 @@ async def signup(user_data: UserSignupRequest):
     user_response = UserResponse(
         id=str(user_id),
         email=user_data.email.lower(),
-        fullName=user_data.fullName
+        fullName=user_data.fullName,
+        points=0
     )
     
     logger.info(f"New user registered: {user_data.email}")
@@ -150,7 +152,8 @@ async def login(user_data: UserLoginRequest):
     user_response = UserResponse(
         id=str(user["_id"]),
         email=user["email"],
-        fullName=user["fullName"]
+        fullName=user["fullName"],
+        points=user.get("points", 0)
     )
     
     logger.info(f"User logged in: {user['email']}")
@@ -177,5 +180,33 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user_de
     return UserResponse(
         id=str(current_user["_id"]),
         email=current_user["email"],
-        fullName=current_user["fullName"]
+        fullName=current_user["fullName"],
+        points=current_user.get("points", 0)
     )
+
+
+@router.post("/test-points/{points}")
+async def test_add_points(points: int, current_user: dict = Depends(get_current_user_dependency)):
+    """
+    Test endpoint to add points to current user (for testing)
+    """
+    from ..utils.db import get_users_collection
+    from bson import ObjectId
+    
+    users_collection = get_users_collection()
+    user_id = ObjectId(current_user["_id"])
+    
+    # Update user points
+    await users_collection.update_one(
+        {"_id": user_id},
+        {"$inc": {"points": points}}
+    )
+    
+    # Get updated user
+    updated_user = await users_collection.find_one({"_id": user_id})
+    
+    return {
+        "success": True,
+        "message": f"Added {points} points",
+        "total_points": updated_user.get("points", 0)
+    }

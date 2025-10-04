@@ -18,6 +18,10 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
+
   const addToast = useCallback((message, type = 'info', options = {}) => {
     const id = Date.now() + Math.random();
     const newToast = {
@@ -39,11 +43,7 @@ export const ToastProvider = ({ children }) => {
     }
 
     return id;
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
+  }, [removeToast]);
 
   const clearAllToasts = useCallback(() => {
     setToasts([]);
@@ -82,19 +82,17 @@ export const ToastProvider = ({ children }) => {
       {children}
       
       {/* Render toasts */}
-      <div className="toast-container">
-        {toasts.map(toast => (
-          <Toast
-            key={toast.id}
-            type={toast.type}
-            message={toast.message}
-            isVisible={true}
-            onClose={() => removeToast(toast.id)}
-            duration={0} // Let context handle duration
-            position={toast.position}
-          />
-        ))}
-      </div>
+      {toasts.map(toast => (
+        <Toast
+          key={toast.id}
+          type={toast.type}
+          message={toast.message}
+          isVisible={true}
+          onClose={() => removeToast(toast.id)}
+          duration={0} // Let context handle duration
+          position={toast.position}
+        />
+      ))}
     </ToastContext.Provider>
   );
 };

@@ -63,6 +63,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     fullName: str
+    points: int = 0
 
 
 class UserInDB(BaseModel):
@@ -71,6 +72,7 @@ class UserInDB(BaseModel):
     email: str
     password_hash: str
     fullName: str
+    points: int = 0
     createdAt: datetime
     updatedAt: datetime
 

@@ -54,19 +54,21 @@ const LoginPage = () => {
     }
 
     setIsSubmitting(true);
+    clearError(); // Clear any previous errors
 
     try {
-      const success = await login(formData.email, formData.password);
+      const result = await login(formData.email, formData.password);
 
-      if (success) {
+      if (result.success) {
         showSuccess('Login successful! Welcome back.');
         navigate('/courses');
-      } else if (error) {
-        showError(error);
+      } else {
+        showError(result.error || 'Invalid email or password. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);
-      showError('Login failed. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Login failed. Please try again.';
+      showError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

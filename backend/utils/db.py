@@ -36,6 +36,9 @@ class Database:
             # Create database indexes on startup
             await cls._create_indexes()
             
+            # Run migrations
+            await cls._run_migrations()
+            
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             # Don't raise the exception to allow server to start
@@ -83,6 +86,29 @@ class Database:
         except Exception as e:
             logger.error(f"Failed to create database indexes: {e}")
             # Continue without indexes - performance may be degraded but app will work
+
+    @classmethod
+    async def _run_migrations(cls):
+        """
+        Run database migrations for schema updates
+        """
+        try:
+            db = cls.get_database()
+            
+            # Migration 1: Add points field to existing users
+            users_collection = db.users
+            result = await users_collection.update_many(
+                {"points": {"$exists": False}},  # Find users without points field
+                {"$set": {"points": 0}}  # Set points to 0
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Migration: Added points field to {result.modified_count} users")
+            
+            logger.info("Database migrations completed successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to run database migrations: {e}")
     
     @classmethod
     async def close_db(cls):

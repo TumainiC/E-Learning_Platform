@@ -36,15 +36,15 @@ const Toast = ({
   };
 
   const getToastStyles = () => {
-    const baseStyles = 'fixed z-50 max-w-md p-4 rounded-lg shadow-lg transition-all duration-300 transform';
+    const baseStyles = 'fixed z-50 max-w-md p-4 rounded-lg shadow-lg transition-all duration-300 pointer-events-auto';
     
     const positionStyles = {
       'top-right': 'top-4 right-4',
       'top-left': 'top-4 left-4', 
       'bottom-right': 'bottom-4 right-4',
       'bottom-left': 'bottom-4 left-4',
-      'top-center': 'top-4 left-1/2 transform -translate-x-1/2',
-      'bottom-center': 'bottom-4 left-1/2 transform -translate-x-1/2'
+      'top-center': 'top-4 left-1/2 -translate-x-1/2',
+      'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2'
     };
 
     const typeStyles = {
@@ -55,8 +55,8 @@ const Toast = ({
     };
 
     const animationStyles = show 
-      ? 'translate-x-0 opacity-100' 
-      : 'translate-x-full opacity-0';
+      ? 'opacity-100 scale-100' 
+      : 'opacity-0 scale-95';
 
     return `${baseStyles} ${positionStyles[position]} ${typeStyles[type]} ${animationStyles}`;
   };

@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
    * Login user
    * @param {string} email - User email
    * @param {string} password - User password
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<{success: boolean, error?: string}>} Login result
    */
   const login = async (email, password) => {
     try {
@@ -80,14 +80,14 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('userData', JSON.stringify(userData));
         
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false, error: 'Login failed' };
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error.response?.data?.detail || 'Login failed';
       setError(errorMessage);
-      return false;
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }) => {
    * @param {string} password - User password
    * @param {string} fullName - User full name
    * @param {string} confirmPassword - Password confirmation
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<{success: boolean, error?: string}>} Signup result
    */
   const signup = async (email, password, fullName, confirmPassword) => {
     try {
@@ -115,14 +115,14 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('userData', JSON.stringify(userData));
         
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false, error: 'Signup failed' };
     } catch (error) {
       console.error('Signup error:', error);
       const errorMessage = error.response?.data?.detail || 'Signup failed';
       setError(errorMessage);
-      return false;
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -145,6 +145,29 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+   * Refresh current user data
+   * @returns {Promise<boolean>} Success status
+   */
+  const refreshUser = async () => {
+    try {
+      console.log('refreshUser called, token:', !!token);
+      if (!token) return false;
+      
+      console.log('Fetching current user...');
+      const currentUser = await authAPI.getCurrentUser();
+      console.log('Current user data:', currentUser);
+      
+      setUser(currentUser);
+      localStorage.setItem('userData', JSON.stringify(currentUser));
+      return true;
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      // Don't logout on refresh error - user might be temporarily offline
+      return false;
+    }
+  };
+
+  /**
    * Check if user is authenticated
    * @returns {boolean} Authentication status
    */
@@ -162,6 +185,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     clearError,
+    refreshUser,
     isAuthenticated,
   };
 
