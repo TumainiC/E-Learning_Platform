@@ -59,15 +59,28 @@ const CourseCard = ({ course }) => {
           </div>
         )}
         
-        {/* Completion Badge */}
-        {course.isCompleted && (
-          <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Completed
-          </div>
-        )}
+        {/* Status Badges */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2">
+          {/* Enrollment Badge */}
+          {course.isEnrolled && (
+            <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+              Enrolled
+            </div>
+          )}
+          
+          {/* Completion Badge */}
+          {course.isCompleted && (
+            <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Completed
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Course Title */}
@@ -91,6 +104,26 @@ const CourseCard = ({ course }) => {
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getLevelColor(course.level)}`}>
           {course.level}
         </span>
+        
+        {/* Enrollment Status Badge */}
+        {course.isEnrolled && (
+          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+            Enrolled
+          </span>
+        )}
+        
+        {/* Completion Status Badge */}
+        {course.isCompleted && (
+          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Complete
+          </span>
+        )}
       </div>
       
       {/* Course Details */}
@@ -99,6 +132,22 @@ const CourseCard = ({ course }) => {
           <span>Instructor: {course.instructor}</span>
           <span>{course.lessonsCount} lessons</span>
         </div>
+        
+        {/* Progress Bar for Enrolled Courses */}
+        {course.isEnrolled && course.progress !== undefined && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Progress</span>
+              <span>{course.progress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${course.progress || 0}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Action Button */}
@@ -109,7 +158,8 @@ const CourseCard = ({ course }) => {
           handleCardClick();
         }}
       >
-        {course.isCompleted ? 'Review Course' : 'Start Learning'}
+        {course.isCompleted ? 'Review Course' : 
+         course.isEnrolled ? 'Continue Learning' : 'View Course'}
       </button>
     </div>
   );

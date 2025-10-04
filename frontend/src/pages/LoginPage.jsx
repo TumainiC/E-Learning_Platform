@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +16,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { login, error, clearError, isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -47,6 +49,7 @@ const LoginPage = () => {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
+      showError('Please fill in all fields');
       return;
     }
 
@@ -56,10 +59,14 @@ const LoginPage = () => {
       const success = await login(formData.email, formData.password);
 
       if (success) {
+        showSuccess('Login successful! Welcome back.');
         navigate('/courses');
+      } else if (error) {
+        showError(error);
       }
     } catch (error) {
       console.error('Login error:', error);
+      showError('Login failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -72,12 +79,6 @@ const LoginPage = () => {
           <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
           <p className="text-gray-600 mt-2">Sign in to your account</p>
         </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email Field */}

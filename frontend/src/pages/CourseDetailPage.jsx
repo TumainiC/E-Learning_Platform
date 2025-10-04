@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useToast } from '../context/ToastContext';
 
 const CourseDetailPage = () => {
   const { id } = useParams();
+  const { showSuccess, showError } = useToast();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,11 +49,24 @@ const CourseDetailPage = () => {
       
       await api.post(`/api/courses/${id}/enroll`);
       
+      // Show success toast
+      showSuccess(`Successfully enrolled in "${course?.title}"!`);
+      
+      // Refresh course and progress data
       await fetchCourse();
       await fetchProgress();
       
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to enroll in course');
+      const errorMessage = err.response?.data?.detail || 'Failed to enroll in course';
+      
+      // Show error toast
+      if (err.response?.status === 400 && errorMessage.includes('already enrolled')) {
+        showError('You are already enrolled in this course!');
+      } else {
+        showError(errorMessage);
+      }
+      
+      setError(errorMessage);
     } finally {
       setEnrolling(false);
     }
@@ -63,16 +78,22 @@ const CourseDetailPage = () => {
       
       await api.post(`/api/courses/${id}/modules/${moduleIndex}/complete`);
       
+      // Show success toast for module completion
+      showSuccess(`Module ${moduleIndex + 1} completed!`);
+      
       await fetchProgress();
       
       const updatedProgress = await api.get(`/api/courses/${id}/progress`);
       if (updatedProgress.data.isFullyCompleted && !progress?.isFullyCompleted) {
         setShowCongratulations(true);
+        showSuccess(`🎉 Congratulations! You've completed "${course?.title}"!`);
       }
       setProgress(updatedProgress.data);
       
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to mark module as completed');
+      const errorMessage = err.response?.data?.detail || 'Failed to mark module as completed';
+      showError(errorMessage);
+      setError(errorMessage);
     }
   };
 

@@ -53,6 +53,7 @@ class CourseResponse(BaseModel):
     isCompleted: bool = False
     completedAt: Optional[datetime] = None
     isEnrolled: bool = False
+    progress: Optional[int] = None  # Progress percentage for enrolled courses
 
 
 class CoursesListResponse(BaseModel):

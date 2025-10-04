@@ -15,6 +15,17 @@ const CourseListPage = () => {
 
   useEffect(() => {
     fetchCourses();
+    
+    // Refresh courses when window regains focus (useful when returning from course detail page)
+    const handleFocus = () => {
+      fetchCourses();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const fetchCourses = async () => {

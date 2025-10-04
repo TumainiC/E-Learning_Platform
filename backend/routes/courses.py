@@ -107,9 +107,6 @@ async def enroll_in_course(course_id: str, current_user: dict = Depends(get_curr
             detail="Failed to enroll in course"
         )
 
-# Create router for course endpoints
-router = APIRouter(prefix="/api/courses", tags=["courses"])
-
 
 async def seed_courses():
     """
@@ -230,10 +227,11 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
         # Ensure courses are seeded
         await seed_courses()
         
-        # Get courses, completions, and enrollments collections
+        # Get courses, completions, enrollments, and module completions collections
         courses_collection = get_courses_collection()
         completions_collection = get_completions_collection()
         enrollments_collection = get_enrollments_collection()
+        module_completions_collection = get_module_completions_collection()
         
         # Fetch all courses from database
         courses_cursor = courses_collection.find({})
@@ -253,6 +251,18 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
         enrolled_courses = await enrolled_courses_cursor.to_list(length=None)
         enrolled_course_ids = {str(enrollment["courseId"]) for enrollment in enrolled_courses}
         
+        # Get user's module completions for progress calculation
+        module_completions_cursor = module_completions_collection.find({"userId": user_id})
+        module_completions = await module_completions_cursor.to_list(length=None)
+        
+        # Group module completions by course ID
+        course_module_completions = {}
+        for completion in module_completions:
+            course_id = str(completion["courseId"])
+            if course_id not in course_module_completions:
+                course_module_completions[course_id] = []
+            course_module_completions[course_id].append(completion)
+        
         # Convert to response format with completion and enrollment status
         course_responses = []
         for course in courses:
@@ -260,6 +270,13 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
             completed_at = completed_course_map.get(course_id)
             is_completed = completed_at is not None
             is_enrolled = course_id in enrolled_course_ids
+            
+            # Calculate progress for enrolled courses
+            progress = None
+            if is_enrolled:
+                total_modules = len(course["syllabus"])
+                completed_modules = len(course_module_completions.get(course_id, []))
+                progress = round((completed_modules / total_modules) * 100) if total_modules > 0 else 0
             
             course_response = CourseResponse(
                 id=course_id,
@@ -274,7 +291,8 @@ async def get_courses(current_user: dict = Depends(get_current_user_dependency))
                 thumbnail=course["thumbnail"],
                 isCompleted=is_completed,
                 completedAt=completed_at,
-                isEnrolled=is_enrolled
+                isEnrolled=is_enrolled,
+                progress=progress
             )
             course_responses.append(course_response)
         
@@ -315,9 +333,10 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
                 detail="Invalid course ID format"
             )
         
-        # Get courses and completions collections
+        # Get courses, completions, and enrollments collections
         courses_collection = get_courses_collection()
         completions_collection = get_completions_collection()
+        enrollments_collection = get_enrollments_collection()
         
         # Find course by ID
         course = await courses_collection.find_one({"_id": object_id})
@@ -335,8 +354,15 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
             "courseId": object_id
         })
         
+        # Check if user is enrolled in this course
+        enrollment = await enrollments_collection.find_one({
+            "userId": user_id,
+            "courseId": object_id
+        })
+        
         is_completed = completion is not None
         completed_at = completion["completedAt"] if completion else None
+        is_enrolled = enrollment is not None
         
         # Convert to response format
         course_response = CourseResponse(
@@ -351,7 +377,8 @@ async def get_course(course_id: str, current_user: dict = Depends(get_current_us
             objectives=course["objectives"],
             thumbnail=course["thumbnail"],
             isCompleted=is_completed,
-            completedAt=completed_at
+            completedAt=completed_at,
+            isEnrolled=is_enrolled
         )
         
         logger.info(f"Retrieved course {course_id} for user {current_user['email']}")

@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -15,11 +16,11 @@ const SignUpPage = () => {
   });
   const [validationErrors, setValidationErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { signup, error, clearError, isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -122,6 +123,7 @@ const SignUpPage = () => {
     e.preventDefault();
 
     if (!validateForm()) {
+      showError('Please correct the errors in the form');
       return;
     }
 
@@ -136,30 +138,20 @@ const SignUpPage = () => {
       );
 
       if (success) {
-        setShowSuccess(true);
+        showSuccess('Account created successfully! Welcome to the platform.');
         setTimeout(() => {
           navigate('/courses');
         }, 2000);
+      } else if (error) {
+        showError(error);
       }
     } catch (error) {
       console.error('Signup error:', error);
+      showError('Account creation failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Show success message
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="text-green-600 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Created!</h2>
-          <p className="text-gray-600">Redirecting to courses...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
