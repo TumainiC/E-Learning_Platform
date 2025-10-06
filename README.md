@@ -482,23 +482,10 @@ SOFTWARE.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-- Follow existing code style and conventions
-- Add tests for new features
-- Update documentation as needed
-- Ensure all tests pass before submitting PR
-
-## 📞 Support
-
-For support, please create an issue on the GitHub repository or contact the development team.
-
 ## 🎉 Acknowledgments
 
 - Built with modern web technologies and best practices
 - Inspired by the need for accessible online education platforms
 - Community-driven development and open-source principles
 
----
 
-
-**Ready to start learning?** Follow the installation guide above and launch your e-learning platform today!
