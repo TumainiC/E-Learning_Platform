@@ -1,4 +1,4 @@
-# Mini E-Learning Platform# Mini E-Learning Platform
+# Mini E-Learning Platform
 
 
 A fully functional e-learning platform built with modern web technologies, featuring course management, user authentication, progress tracking, and a responsive interface. This platform provides a complete solution for online education with secure user management and intuitive course navigation.A modern e-learning platform built with FastAPI and MongoDB.
@@ -499,5 +499,6 @@ For support, please create an issue on the GitHub repository or contact the deve
 - Community-driven development and open-source principles
 
 ---
+
 
 **Ready to start learning?** Follow the installation guide above and launch your e-learning platform today!
